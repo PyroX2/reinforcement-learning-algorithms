@@ -6,10 +6,15 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 import cv2
 import sys
+from time import time
+
 
 BATCH_SIZE = 5000
 LEARNING_RATE = 1e-2
-NUM_EPOCHS = 40
+NUM_EPOCHS = 50
+
+torch.manual_seed(0)
+
 
 def get_weights_from_rewards(rews: list[np.ndarray]) -> np.ndarray:
     rews = np.array(rews)
@@ -76,7 +81,6 @@ def compute_loss(model, obs, action, weights):
 
 vec_env = gym.make_vec("CartPole-v1", num_envs=8, render_mode="rgb_array", vectorization_mode="sync")
 
-
 observation_dim = vec_env.observation_space.shape[1]
 
 actions_dim = vec_env.action_space[0].n
@@ -86,6 +90,8 @@ model = Mlp(observation_dim, actions_dim, [32])
 optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
 writer = SummaryWriter("runs/")
+
+start_time = time()
 
 for epoch in range(NUM_EPOCHS):
     batch_obs = [] # List for storing all observations
@@ -127,6 +133,9 @@ for epoch in range(NUM_EPOCHS):
 
     print(f"Epoch {epoch}: Mean return: {mean_batch_return}")
 
+end_time = time()
+
+print(f"Training took: {end_time - start_time}s")
 
 # Inference
 obs, info = vec_env.reset()
@@ -134,7 +143,8 @@ while True:
     frame = vec_env.render()[0]
     cv2.imshow("env 1", frame)
     if cv2.waitKey(1) == ord('q'):
-        sys.exit()
+        cv2.destroyAllWindows()
+        break
     
     actions = get_action(model, torch.tensor(obs))
     obs, reward, terminated, truncated, _ = vec_env.step(actions.numpy())

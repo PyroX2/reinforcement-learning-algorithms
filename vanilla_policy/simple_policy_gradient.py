@@ -4,11 +4,15 @@ import gymnasium as gym
 from torch.distributions import Categorical
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
+from time import time
 
 
 BATCH_SIZE = 5000
 LEARNING_RATE = 1e-2
-NUM_EPOCHS = 25
+NUM_EPOCHS = 50
+
+torch.manual_seed(0)
+
 
 class Mlp(nn.Module):
     def __init__(self, obsevration_dim, actions_dim, sizes):
@@ -51,11 +55,10 @@ def train_one_epoch(model, optimizer, env):
 
     ep_rews = [] # List for storing eposiode rewards
 
-
     obs, info = env.reset()
     while True:
         batch_obs.append(obs.tolist())
-        env.render()
+        # env.render()
         
         action = get_action(model, torch.tensor(obs))
         obs, reward, terminated, truncated, _ = env.step(action.item())
@@ -85,7 +88,7 @@ def train_one_epoch(model, optimizer, env):
     return batch_rets, batch_lens
 
 def main():
-    env = gym.make("CartPole-v1", render_mode="human")
+    env = gym.make("CartPole-v1", render_mode="rgb_array")
     observation_dim = env.observation_space.shape[0]
 
     actions_dim = 2
@@ -95,6 +98,8 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     writer = SummaryWriter("runs/")
+
+    start_time = time()
 
     for epoch in range(NUM_EPOCHS):
         batch_rets, batch_lens = train_one_epoch(model, optimizer, env)
@@ -106,6 +111,10 @@ def main():
         writer.add_scalar("Mean episode len", mean_batch_lens, epoch)
 
         print(f"Epoch {epoch}: Mean return: {mean_batch_return}, Mean episode len: {mean_batch_lens}")
+
+    end_time = time()
+
+    print(f"Training took: {end_time - start_time}")
     
 
 
