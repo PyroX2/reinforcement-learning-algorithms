@@ -21,6 +21,7 @@ NUM_EPISODES_TO_AVERAGE = 4
 
 UPDATE_TARGET_NETWORK_STEPS = 5_000 # number of steps after which target network is updated
 
+torch.manual_seed(0)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -128,7 +129,7 @@ criterion = nn.SmoothL1Loss()
 
 episode_reward_list = []
 
-state, info = env.reset()
+state, info = env.reset(seed=0)
 lives = info['lives'] + 1
 
 loss = 0
@@ -154,7 +155,7 @@ for step in range(NUM_STEPS):
     episode_reward += reward
 
     if terminated or truncated:
-        env.reset()
+        env.reset(seed=0)
         episode_reward_list.append(episode_reward)
         episode_reward = torch.tensor(0, dtype=torch.float64)
 
