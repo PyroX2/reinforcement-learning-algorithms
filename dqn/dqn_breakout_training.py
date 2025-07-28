@@ -5,6 +5,7 @@ import math
 import numpy as np
 import ale_py
 import cv2
+from torch.utils.tensorboard import SummaryWriter
 
 EPS_START = 0.1
 EPS_END = 0.001
@@ -127,12 +128,15 @@ replay_buffer = ReplayBuffer(MAX_MEMORY_LENGTH)
 optimizer = torch.optim.AdamW(policy_network.parameters(), LEARNING_RATE, amsgrad=True)
 criterion = nn.SmoothL1Loss()
 
+writer = SummaryWriter("runs/dqn")
+
 episode_reward_list = []
 
 state, info = env.reset(seed=0)
 lives = info['lives'] + 1
 
 loss = 0
+episode = 0
 
 episode_reward = torch.tensor(0, dtype=torch.float64)
 for step in range(NUM_STEPS):
@@ -158,6 +162,7 @@ for step in range(NUM_STEPS):
         env.reset(seed=0)
         episode_reward_list.append(episode_reward)
         episode_reward = torch.tensor(0, dtype=torch.float64)
+        episode += 1
 
     replay_buffer.update(state, action, new_state, reward)
 
@@ -177,6 +182,7 @@ for step in range(NUM_STEPS):
         mean_episode_reward = torch.mean(torch.tensor(episode_reward_list))
         episode_reward_list = []
         print(f"Step: {step}, mean episode reward: {mean_episode_reward}, eps_threshold: {eps_threshold}, loss: {loss}")
+        writer.add_scalar("MeanReward", mean_episode_reward, global_step=episode)
 
     if step % 100_000 == 0:
         torch.save(policy_network.state_dict(), "dqn_breakout_ckpt.pth")
