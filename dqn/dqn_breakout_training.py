@@ -11,7 +11,7 @@ EPS_START = 0.1
 EPS_END = 0.001
 EPS_DECAY = 1e6
 
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 MAX_MEMORY_LENGTH = 1024
 GAMMA = 0.99
 TAU = 0.005
@@ -20,7 +20,7 @@ NUM_STEPS = 500_000
 LEARNING_RATE = 1e-3
 NUM_EPISODES_TO_AVERAGE = 4
 
-UPDATE_TARGET_NETWORK_STEPS = 10_000 # number of steps after which target network is updated
+NUM_FRAMES_STACKED = 4
 
 torch.manual_seed(0)
 
@@ -52,12 +52,16 @@ class ReplayBuffer:
         if batch_size > len(self._memory["state"]):
             raise ValueError("Batch size must be smaller than the memory length")
 
-        batch_indices = torch.randperm(len(self._memory["state"]))[:batch_size]
+        batch_indices = torch.randperm(len(self._memory["state"])-NUM_FRAMES_STACKED)[:batch_size]
 
-        states = torch.tensor(np.array(self._memory["state"]), dtype=torch.float32).to(device)[batch_indices]
-        actions = torch.tensor(np.array(self._memory["action"]), dtype=torch.int64).to(device)[batch_indices]
-        new_states = torch.tensor(np.array(self._memory["new_state"]), dtype=torch.float32).to(device)[batch_indices]
-        rewards = torch.tensor(np.array(self._memory["reward"]), dtype=torch.float32).to(device)[batch_indices]
+        # states = torch.tensor(np.array(self._memory["state"]), dtype=torch.float32).to(device)[batch_indices:batch_indices+NUM_FRAMES_STACKED]
+        offsets = torch.arange(NUM_FRAMES_STACKED, device=device)  # [0, 1, 2, 3]
+        indices = batch_indices.unsqueeze(1) + offsets.unsqueeze(0)  # Shape: (batch_size, 4)
+        states = torch.tensor(np.array(self._memory["state"]), dtype=torch.float32).to(device)[indices.flatten()].view(len(batch_indices), NUM_FRAMES_STACKED, -1)
+
+        actions = torch.tensor(np.array(self._memory["action"]), dtype=torch.int64).to(device)[batch_indices:batch_indices+NUM_FRAMES_STACKED]
+        new_states = torch.tensor(np.array(self._memory["new_state"]), dtype=torch.float32).to(device)[batch_indices:batch_indices+NUM_FRAMES_STACKED]
+        rewards = torch.tensor(np.array(self._memory["reward"]), dtype=torch.float32).to(device)[batch_indices:batch_indices+NUM_FRAMES_STACKED]
 
         return states, actions, new_states, rewards
     
@@ -168,7 +172,7 @@ for step in range(NUM_STEPS):
 
     state = new_state
 
-    if len(replay_buffer) > BATCH_SIZE:
+    if len(replay_buffer) >= BATCH_SIZE+NUM_FRAMES_STACKED:
         loss = optimize_model(replay_buffer, policy_network, target_network, optimizer, criterion)
 
     if step % UPDATE_TARGET_NETWORK_STEPS == 0:
