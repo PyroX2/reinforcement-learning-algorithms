@@ -10,8 +10,8 @@ EPS_START = 0.1
 EPS_END = 0.001
 EPS_DECAY = 1e6
 
-BATCH_SIZE = 512
-MAX_MEMORY_LENGTH = 512
+BATCH_SIZE = 32
+MAX_MEMORY_LENGTH = 1024
 GAMMA = 0.99
 TAU = 0.005
 
@@ -19,7 +19,7 @@ NUM_STEPS = 500_000
 LEARNING_RATE = 1e-3
 NUM_EPISODES_TO_AVERAGE = 4
 
-UPDATE_TARGET_NETWORK_STEPS = 5_000 # number of steps after which target network is updated
+UPDATE_TARGET_NETWORK_STEPS = 10_000 # number of steps after which target network is updated
 
 torch.manual_seed(0)
 
