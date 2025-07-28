@@ -6,18 +6,20 @@ import numpy as np
 import ale_py
 import cv2
 
-EPS_START = 0.2
-EPS_END = 0.15
-EPS_DECAY = 100_000
+EPS_START = 0.1
+EPS_END = 0.001
+EPS_DECAY = 1e6
 
-BATCH_SIZE = 4096
-MAX_MEMORY_LENGTH = 10_000
+BATCH_SIZE = 512
+MAX_MEMORY_LENGTH = 512
 GAMMA = 0.99
 TAU = 0.005
 
 NUM_STEPS = 500_000
 LEARNING_RATE = 1e-3
-NUM_STEPS_TO_AVERAGE = 10
+NUM_EPISODES_TO_AVERAGE = 4
+
+UPDATE_TARGET_NETWORK_STEPS = 5_000 # number of steps after which target network is updated
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -163,16 +165,20 @@ for step in range(NUM_STEPS):
     if len(replay_buffer) > BATCH_SIZE:
         loss = optimize_model(replay_buffer, policy_network, target_network, optimizer, criterion)
 
-    target_net_state_dict = target_network.state_dict()
-    policy_net_state_dict = policy_network.state_dict()
-    for key in policy_net_state_dict:
-        target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
-    target_network.load_state_dict(target_net_state_dict)
+    if step % UPDATE_TARGET_NETWORK_STEPS == 0:
+        target_net_state_dict = target_network.state_dict()
+        policy_net_state_dict = policy_network.state_dict()
+        for key in policy_net_state_dict:
+            target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
+        target_network.load_state_dict(target_net_state_dict)
 
-    if len(episode_reward_list) > NUM_STEPS_TO_AVERAGE:
+    if len(episode_reward_list) > NUM_EPISODES_TO_AVERAGE:
         mean_episode_reward = torch.mean(torch.tensor(episode_reward_list))
         episode_reward_list = []
         print(f"Step: {step}, mean episode reward: {mean_episode_reward}, eps_threshold: {eps_threshold}, loss: {loss}")
+
+    if step % 100_000 == 0:
+        torch.save(policy_network.state_dict(), "dqn_breakout_ckpt.pth")
 
 torch.save(policy_network.state_dict(), "dqn_breakout_trained_2.pth")
 
